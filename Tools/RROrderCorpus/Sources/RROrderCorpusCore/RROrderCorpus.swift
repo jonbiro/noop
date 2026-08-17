@@ -281,7 +281,7 @@ public enum RROrderCorpusEncoder {
     }
 
     private static func optionalBool(_ value: Bool?) -> String {
-        value.map(String.init) ?? ""
+        value.map { String($0) } ?? ""
     }
 
     private static func csvEscape(_ value: String) -> String {
