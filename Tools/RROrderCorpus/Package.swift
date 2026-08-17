@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "RROrderCorpusCore", targets: ["RROrderCorpusCore"]),
         .executable(name: "rr-order-corpus", targets: ["RROrderCorpusCLI"]),
+        .executable(name: "rr-order-summary", targets: ["RROrderSummaryCLI"]),
     ],
     dependencies: [
         .package(path: "../../Packages/WhoopProtocol"),
@@ -27,6 +28,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "RROrderCorpusCLI",
+            dependencies: ["RROrderCorpusCore"]
+        ),
+        .executableTarget(
+            name: "RROrderSummaryCLI",
             dependencies: ["RROrderCorpusCore"]
         ),
         .testTarget(
