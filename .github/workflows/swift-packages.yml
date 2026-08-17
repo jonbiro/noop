@@ -15,6 +15,7 @@ on:
       - 'Tools/SleepBench/**'
       - 'Tools/SleepPSG/**'
       - 'Tools/Backfill/**'
+      - 'Tools/RROrderCorpus/**'
       - '.github/workflows/swift-packages.yml'
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - 'Tools/SleepBench/**'
       - 'Tools/SleepPSG/**'
       - 'Tools/Backfill/**'
+      - 'Tools/RROrderCorpus/**'
       - '.github/workflows/swift-packages.yml'
   workflow_dispatch:
 
@@ -68,6 +70,10 @@ jobs:
   # `SleepStagerV2`, and its test suite is what proves that port still reproduces the shipped stager
   # label-for-label. Without this job the port drifts the first time someone edits a coefficient, and the
   # tool keeps printing confident numbers about a recipe that no longer exists. The check needs no dataset.
+  #
+  # RROrderCorpus is the measurement instrument for the #823 follow-through. Its tests prove that the
+  # read-only SQL returns the same rows as the production audit read and that aggregate output cannot leak
+  # the raw R-R sequence or device id unless explicitly requested.
   tools:
     runs-on: macos-15
     strategy:
@@ -77,6 +83,7 @@ jobs:
           - SleepBench
           - SleepPSG
           - Backfill
+          - RROrderCorpus
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -85,7 +92,7 @@ jobs:
         run: swift build
         working-directory: Tools/${{ matrix.tool }}
 
-      # Only SleepBench has a test target; `swift test` on a package without one fails, so it is guarded.
+      # Tools with a test target run it; build-only tools state that explicitly.
       - name: Test ${{ matrix.tool }}
         run: |
           if grep -q 'testTarget' Package.swift; then
