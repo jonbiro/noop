@@ -121,8 +121,11 @@ struct RROrderCorpusCommand {
             try write(try RROrderCorpusEncoder.encode(result.records, format: options.format), path: options.outputPath)
 
             if let summaryPath = options.summaryPath {
-                let summary = try RROrderCorpusSummary.summarize(result.records, bootstrapIterations: options.bootstrapIterations)
-                try write(try RROrderCorpusSummaryEncoder.encode(summary, format: options.summaryFormat), path: summaryPath)
+                let report = try RROrderCorpusAnalysisReport.analyze(
+                    result.records,
+                    bootstrapIterations: options.bootstrapIterations
+                )
+                try write(try RROrderCorpusAnalysisEncoder.encode(report, format: options.summaryFormat), path: summaryPath)
             }
             writeError("database user_version=\(database.userVersion); \(result.summary.text)")
         } catch {
@@ -145,9 +148,14 @@ struct RROrderCorpusCommand {
     private static let helpText = """
     Usage: rr-order-corpus [options]
 
-    Runs the R-R ordering integrity audit once per stored NOOP sleep session. SQLite is opened read-only;
-    raw R-R sequences are never emitted. Schema-v2 JSONL/CSV includes structural provenance, permutation
-    severity, cleaning diagnostics, all core HRV counterfactuals, and scoring-filter exclusion counts.
+    Runs the R-R input-integrity audit once per stored NOOP sleep session. SQLite is opened read-only;
+    raw R-R sequences are never emitted. JSONL/CSV includes structural order provenance, native capture
+    coverage/beat-accuracy/over-count diagnostics, permutation severity, cleaning diagnostics, all core HRV
+    counterfactuals, and scoring-filter exclusion counts.
+
+    When --summary is supplied, the aggregate report also includes deterministic bootstrap intervals,
+    strata, capture/effect associations, coverage-verdict summaries, Readiness HRV signal transitions,
+    and a bounded Charge HRV contribution sensitivity envelope.
 
     Options:
       --db PATH                    NOOP SQLite path. Otherwise uses NOOP_DB_PATH or the standard app path.
@@ -159,7 +167,7 @@ struct RROrderCorpusCommand {
       --format jsonl|csv           Record format. Default: jsonl.
       --output PATH                Record output. Use '-' or omit for stdout.
       --include-device-id          Include raw database device IDs; default is device-001 pseudonyms only.
-      --summary PATH               Also write an aggregate summary in the same run.
+      --summary PATH               Also write a capture-aware aggregate report in the same run.
       --summary-format markdown|json  Aggregate format. Default: markdown.
       --bootstrap-iterations N     Deterministic RMSSD-delta bootstrap iterations, 0..100000. Default: 2000.
       -h, --help                   Show this help.
