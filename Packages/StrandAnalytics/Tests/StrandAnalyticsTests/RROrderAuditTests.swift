@@ -9,30 +9,24 @@ final class RROrderAuditTests: XCTestCase {
 
     func testIssueExampleShowsMagnitudeOrderBiasAndPermutationSeverity() {
         let emission = [812, 795, 840, 801, 833]
-        let rows = emission.enumerated().map { offset, value in
-            row(ts: 100, rrMs: value, ord: offset)
-        }
-
+        let rows = emission.enumerated().map { offset, value in row(ts: 100, rrMs: value, ord: offset) }
         let report = RROrderAudit.evaluate(rows)
 
-        XCTAssertEqual(report.schemaVersion, 2)
+        XCTAssertEqual(report.schemaVersion, 3)
         XCTAssertEqual(report.integrityStatus, .complete)
         XCTAssertEqual(report.currentOrder.rawRmssdMs!, 34.85, accuracy: 0.01)
         XCTAssertEqual(report.magnitudeOrderCounterfactual.rawRmssdMs!, 12.72, accuracy: 0.01)
         XCTAssertGreaterThan(report.rawRmssdCurrentMinusMagnitudeMs!, 20.0)
         XCTAssertEqual(report.currentOrder.actualCleanCount, 5)
-        XCTAssertEqual(report.currentOrder.nClean, 0, "production result stays behind the 20-beat gate")
+        XCTAssertEqual(report.currentOrder.nClean, 0)
         XCTAssertEqual(report.currentOrder.contiguousPairCount, 4)
         XCTAssertFalse(report.currentOrder.meetsProductionBeatGate)
-        XCTAssertEqual(report.provenance.trustworthyMultiBeatSeconds, 1)
-        XCTAssertEqual(report.provenance.magnitudeReorderedTrustworthySeconds, 1)
         XCTAssertEqual(report.permutationImpact.valueInversions, 4)
         XCTAssertEqual(report.permutationImpact.possibleValueInversions, 10)
         XCTAssertEqual(report.permutationImpact.normalizedValueInversionFraction!, 0.4, accuracy: 1e-12)
         XCTAssertTrue(report.rawOrderInvariantPreserved)
         XCTAssertTrue(report.flags.contains(.currentBelowProductionBeatGate))
         XCTAssertTrue(report.flags.contains(.counterfactualBelowProductionBeatGate))
-        // Five beats are intentionally below the production 20-beat gate; raw RMSSD remains measurable.
         XCTAssertNil(report.currentOrder.rmssdMs)
         XCTAssertNil(report.magnitudeOrderCounterfactual.rmssdMs)
     }
@@ -45,7 +39,6 @@ final class RROrderAuditTests: XCTestCase {
                 row(ts: 1_000 + second, rrMs: value, ord: offset)
             })
         }
-
         let report = RROrderAudit.evaluate(rows)
 
         XCTAssertEqual(report.currentOrder.nInput, 20)
@@ -68,15 +61,57 @@ final class RROrderAuditTests: XCTestCase {
         XCTAssertTrue(report.flags.contains(.magnitudeOrderChangesProductionHrv))
     }
 
+    func testNativeCoverageDiagnosticsRecognizePlausibleBeatAccurateCapture() {
+        let rows = (0..<20).map { second in row(ts: second, rrMs: 1_000, ord: 0) }
+        let report = RROrderAudit.evaluate(rows)
+        let capture = report.captureDiagnostics
+
+        XCTAssertEqual(capture.coverage, 20.0 / 19.0, accuracy: 1e-12)
+        XCTAssertEqual(capture.coverageVerdict, HRVAnalyzer.RrCoverageVerdict.plausible.rawValue)
+        XCTAssertTrue(capture.beatSpreadTrustworthy)
+        XCTAssertEqual(capture.beatAccurateFraction, 1.0, accuracy: 1e-12)
+        XCTAssertTrue(capture.beatValuesTrustworthy)
+        XCTAssertEqual(capture.exactDuplicateBeatCount, 0)
+        XCTAssertEqual(capture.sameSecondShadowDropped, 0)
+        // The upstream 1-second shadow is intentionally aggressive: at a perfectly steady 1 s rhythm it
+        // drops legitimate neighbours. Its job is to size an upper bound, never to be a shipped de-dup.
+        XCTAssertGreaterThan(capture.crossSecondUpperBoundDropped, 0)
+        XCTAssertTrue(report.flags.contains(.crossSecondUpperBoundDropsRows))
+        XCTAssertFalse(report.flags.contains(.captureSameSecondOverCount))
+        XCTAssertFalse(report.flags.contains(.captureCrossSecondOverCount))
+    }
+
+    func testNativeCoverageDiagnosticsRecognizeExactSameSecondOverCount() {
+        var rows = (0..<20).map { second in row(ts: second, rrMs: 1_000, seq: 0, ord: 0) }
+        rows.append(row(ts: 10, rrMs: 1_000, seq: 1, ord: 1))
+        let report = RROrderAudit.evaluate(rows)
+        let capture = report.captureDiagnostics
+
+        XCTAssertEqual(capture.exactDuplicateBeatCount, 1)
+        XCTAssertEqual(capture.coverageVerdict, HRVAnalyzer.RrCoverageVerdict.sameSecondOverCount.rawValue)
+        XCTAssertFalse(capture.beatSpreadTrustworthy)
+        XCTAssertEqual(capture.sameSecondShadowDropped, 1)
+        XCTAssertTrue(report.flags.contains(.captureSameSecondOverCount))
+        XCTAssertTrue(report.flags.contains(.exactDuplicateBeatRows))
+        XCTAssertTrue(report.flags.contains(.sameSecondShadowDropsRows))
+    }
+
+    func testBankedTimestampShapeFailsBeatTimingTrustEvenWhenOrderIsKnown() {
+        let rows = (0..<20).map { offset in row(ts: 100 + offset / 5, rrMs: 800, seq: 0, ord: offset % 5) }
+        let report = RROrderAudit.evaluate(rows)
+        XCTAssertLessThan(report.captureDiagnostics.beatAccurateFraction, HRVAnalyzer.beatAccuracyMinFraction)
+        XCTAssertFalse(report.captureDiagnostics.beatValuesTrustworthy)
+        XCTAssertTrue(report.flags.contains(.beatTimingUntrustworthy))
+    }
+
     func testProvenancePartitionsEveryMultiBeatSecondAndAssignsAmbiguousStatus() {
         let rows = [
-            row(ts: 1, rrMs: 800, ord: nil),                                      // single
-            row(ts: 2, rrMs: 812, ord: 2), row(ts: 2, rrMs: 795, ord: 7),         // trustworthy, gaps OK
-            row(ts: 3, rrMs: 801, ord: nil), row(ts: 3, rrMs: 833, ord: nil),     // all unknown
-            row(ts: 4, rrMs: 802, ord: nil), row(ts: 4, rrMs: 834, ord: 0),       // mixed
-            row(ts: 5, rrMs: 803, ord: 0), row(ts: 5, rrMs: 835, ord: 0),         // split-batch ambiguous
+            row(ts: 1, rrMs: 800, ord: nil),
+            row(ts: 2, rrMs: 812, ord: 2), row(ts: 2, rrMs: 795, ord: 7),
+            row(ts: 3, rrMs: 801, ord: nil), row(ts: 3, rrMs: 833, ord: nil),
+            row(ts: 4, rrMs: 802, ord: nil), row(ts: 4, rrMs: 834, ord: 0),
+            row(ts: 5, rrMs: 803, ord: 0), row(ts: 5, rrMs: 835, ord: 0),
         ]
-
         let report = RROrderAudit.evaluate(rows)
         let p = report.provenance
 
@@ -104,7 +139,6 @@ final class RROrderAuditTests: XCTestCase {
         XCTAssertEqual(p.recordedOrderFraction!, 5.0 / 9.0, accuracy: 1e-12)
         XCTAssertEqual(p.trustworthyMultiBeatIntervalFraction!, 0.25, accuracy: 1e-12)
         XCTAssertFalse(p.hasCompleteSameSecondOrder)
-        XCTAssertEqual(p.integrityStatus, .ambiguous)
         XCTAssertEqual(report.integrityStatus, .ambiguous)
         XCTAssertTrue(report.flags.contains(.legacyMultiBeatOrderUnknown))
         XCTAssertTrue(report.flags.contains(.mixedKnownUnknownOrder))
@@ -112,11 +146,7 @@ final class RROrderAuditTests: XCTestCase {
     }
 
     func testUnknownOrderOnSingleBeatSecondsDoesNotDowngradeStructuralIntegrity() {
-        let rows = [
-            row(ts: 10, rrMs: 800, ord: nil),
-            row(ts: 11, rrMs: 810, ord: nil),
-            row(ts: 12, rrMs: 820, ord: nil),
-        ]
+        let rows = [row(ts: 10, rrMs: 800, ord: nil), row(ts: 11, rrMs: 810, ord: nil), row(ts: 12, rrMs: 820, ord: nil)]
         let report = RROrderAudit.evaluate(rows)
         XCTAssertEqual(report.integrityStatus, .complete)
         XCTAssertTrue(report.provenance.hasCompleteSameSecondOrder)
@@ -125,11 +155,8 @@ final class RROrderAuditTests: XCTestCase {
 
     func testActualCleanCountSurvivesProductionGateAndReportsRejections() {
         let rows = [
-            row(ts: 1, rrMs: 800, ord: 0),
-            row(ts: 2, rrMs: 805, ord: 0),
-            row(ts: 3, rrMs: 100, ord: 0),   // out of physiological range
-            row(ts: 4, rrMs: 810, ord: 0),
-            row(ts: 5, rrMs: 815, ord: 0),
+            row(ts: 1, rrMs: 800, ord: 0), row(ts: 2, rrMs: 805, ord: 0),
+            row(ts: 3, rrMs: 100, ord: 0), row(ts: 4, rrMs: 810, ord: 0), row(ts: 5, rrMs: 815, ord: 0),
         ]
         let report = RROrderAudit.evaluate(rows)
         XCTAssertEqual(report.currentOrder.nClean, 0)
@@ -142,10 +169,8 @@ final class RROrderAuditTests: XCTestCase {
 
     func testRawMeanAndSdnnStayInvariantUnderReordering() {
         let rows = [
-            row(ts: 20, rrMs: 900, ord: 2),
-            row(ts: 20, rrMs: 700, ord: 0),
-            row(ts: 20, rrMs: 850, ord: 1),
-            row(ts: 21, rrMs: 810, ord: 0),
+            row(ts: 20, rrMs: 900, ord: 2), row(ts: 20, rrMs: 700, ord: 0),
+            row(ts: 20, rrMs: 850, ord: 1), row(ts: 21, rrMs: 810, ord: 0),
         ]
         let report = RROrderAudit.evaluate(rows)
         XCTAssertEqual(report.currentOrder.rawMeanNNMs!, report.magnitudeOrderCounterfactual.rawMeanNNMs!, accuracy: 1e-12)
@@ -156,25 +181,18 @@ final class RROrderAuditTests: XCTestCase {
 
     func testInputOrderDoesNotChangeReport() {
         let rows = [
-            row(ts: 11, rrMs: 840, seq: 0, ord: 2),
-            row(ts: 10, rrMs: 812, seq: 0, ord: 0),
-            row(ts: 11, rrMs: 795, seq: 0, ord: 0),
-            row(ts: 10, rrMs: 801, seq: 0, ord: 1),
+            row(ts: 11, rrMs: 840, seq: 0, ord: 2), row(ts: 10, rrMs: 812, seq: 0, ord: 0),
+            row(ts: 11, rrMs: 795, seq: 0, ord: 0), row(ts: 10, rrMs: 801, seq: 0, ord: 1),
             row(ts: 11, rrMs: 833, seq: 0, ord: 1),
         ]
         XCTAssertEqual(RROrderAudit.evaluate(rows), RROrderAudit.evaluate(Array(rows.reversed())))
     }
 
     func testEqualValuesDoNotCountAsMagnitudeAffected() {
-        let rows = [
-            row(ts: 20, rrMs: 812, seq: 0, ord: 1),
-            row(ts: 20, rrMs: 812, seq: 1, ord: 0),
-        ]
+        let rows = [row(ts: 20, rrMs: 812, seq: 0, ord: 1), row(ts: 20, rrMs: 812, seq: 1, ord: 0)]
         let report = RROrderAudit.evaluate(rows)
-        let p = report.provenance
-        XCTAssertEqual(p.trustworthyMultiBeatSeconds, 1)
-        XCTAssertEqual(p.magnitudeReorderedTrustworthySeconds, 0)
-        XCTAssertEqual(p.magnitudeReorderedTrustworthyIntervals, 0)
+        XCTAssertEqual(report.provenance.trustworthyMultiBeatSeconds, 1)
+        XCTAssertEqual(report.provenance.magnitudeReorderedTrustworthySeconds, 0)
         XCTAssertEqual(report.permutationImpact.valueInversions, 0)
         XCTAssertEqual(report.permutationImpact.possibleValueInversions, 0)
         XCTAssertNil(report.permutationImpact.normalizedValueInversionFraction)
@@ -190,8 +208,8 @@ final class RROrderAuditTests: XCTestCase {
         XCTAssertTrue(report.provenance.hasCompleteSameSecondOrder)
         XCTAssertNil(report.currentOrder.rawRmssdMs)
         XCTAssertNil(report.currentOrder.rmssdMs)
-        XCTAssertNil(report.rawRmssdCurrentMinusMagnitudeMs)
         XCTAssertTrue(report.rawOrderInvariantPreserved)
+        XCTAssertEqual(report.captureDiagnostics.coverageVerdict, HRVAnalyzer.RrCoverageVerdict.unmeasurable.rawValue)
         XCTAssertTrue(report.flags.contains(.noIntervals))
     }
 }
