@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
@@ -176,7 +177,7 @@ final class RROrderCorpusCoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let database = root.appendingPathComponent("whoop.sqlite")
-        FileManager.default.createFile(atPath: database.path, contents: Data())
+        _ = FileManager.default.createFile(atPath: database.path, contents: Data())
 
         let resolved = try RROrderCorpusDatabasePath.resolve(
             explicitPath: "~/whoop.sqlite",
@@ -189,7 +190,11 @@ final class RROrderCorpusCoreTests: XCTestCase {
     func testMissingSchemaFailsClearly() throws {
         let path = temporaryDatabasePath()
         defer { removeDatabaseAndSidecars(path) }
-        FileManager.default.createFile(atPath: path, contents: Data())
+
+        let queue = try DatabaseQueue(path: path)
+        try queue.write { db in
+            try db.execute(sql: "CREATE TABLE placeholder (id INTEGER PRIMARY KEY)")
+        }
 
         XCTAssertThrowsError(try RROrderCorpusDatabase(path: path)) { error in
             guard case RROrderCorpusDatabaseError.incompatibleSchema(let message) = error else {
