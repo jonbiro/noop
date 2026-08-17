@@ -112,9 +112,8 @@ struct RROrderCorpusCLIOptions {
     }
 }
 
-@main
 struct RROrderCorpusCommand {
-    static func main() {
+    static func run() {
         do {
             let options = try RROrderCorpusCLIOptions.parse(Array(CommandLine.arguments.dropFirst()))
             if options.showHelp {
@@ -186,3 +185,5 @@ struct RROrderCorpusCommand {
       NOOP_DB_PATH=/path/to/whoop.sqlite swift run rr-order-corpus --device-id my-whoop
     """
 }
+
+RROrderCorpusCommand.run()
