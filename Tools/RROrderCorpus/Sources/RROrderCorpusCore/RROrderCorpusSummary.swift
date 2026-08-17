@@ -578,8 +578,8 @@ public enum RROrderCorpusSummaryEncoder {
         lines.append("- Direction: positive \(summary.hrv.currentMinusMagnitudeMs.positiveCount), zero \(summary.hrv.currentMinusMagnitudeMs.zeroCount), negative \(summary.hrv.currentMinusMagnitudeMs.negativeCount)")
         lines.append("- Descriptive absolute-delta bins, ms: \(bins(summary.hrv.absoluteDeltaMsExceedance, unit: "ms"))")
         lines.append("- Descriptive absolute-delta bins, percent: \(bins(summary.hrv.absoluteDeltaPctExceedance, unit: "%"))")
-        lines.append("- Current clean fraction: \(distribution(summary.hrv.currentCleanFraction, unit: ""))")
-        lines.append("- Magnitude clean fraction: \(distribution(summary.hrv.magnitudeCleanFraction, unit: ""))")
+        lines.append("- Current clean fraction: \(percentDistribution(summary.hrv.currentCleanFraction))")
+        lines.append("- Magnitude clean fraction: \(percentDistribution(summary.hrv.magnitudeCleanFraction))")
         lines.append("")
         lines.append("## Raw diagnostic RMSSD")
         lines.append("")
@@ -630,8 +630,13 @@ public enum RROrderCorpusSummaryEncoder {
     }
 
     private static func signedDistribution(_ value: RROrderSignedDifferenceSummary, unit: String) -> String {
-        guard let distribution = value.distribution else { return "n/a" }
-        return distribution(distribution, unit: unit)
+        guard let values = value.distribution else { return "n/a" }
+        return distribution(values, unit: unit)
+    }
+
+    private static func percentDistribution(_ value: RROrderDistributionSummary?) -> String {
+        guard let value else { return "n/a" }
+        return "n=\(value.count), mean \(percent(value.mean)), median \(percent(value.median)), p10-p90 \(percent(value.p10))-\(percent(value.p90)), min-max \(percent(value.minimum))-\(percent(value.maximum))"
     }
 
     private static func bins(_ bins: [RROrderExceedanceBin], unit: String) -> String {
