@@ -36,6 +36,7 @@ let package = Package(
                 "WhoopProtocol",
                 "WhoopStore",
                 "StrandAnalytics",
+                .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
     ]
