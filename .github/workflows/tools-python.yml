@@ -15,12 +15,14 @@ on:
     paths:
       - 'Tools/linux-capture/**'
       - 'Tools/*.py'
+      - 'docs/hardening/**'
       - '.github/workflows/tools-python.yml'
   push:
     branches: [main]
     paths:
       - 'Tools/linux-capture/**'
       - 'Tools/*.py'
+      - 'docs/hardening/**'
       - '.github/workflows/tools-python.yml'
   workflow_dispatch:
 
@@ -60,10 +62,8 @@ jobs:
           fi
         working-directory: Tools/linux-capture
 
-      # The Tools/ suites: the i18n audit that gates every PR's translations, and the What's New
-      # generator (#878). Neither ran before — i18n-coverage.yml invokes `i18n_audit.py --ci` but never
-      # its test file. `discover`, not named modules, for the same reason as above: naming them meant the
-      # generator's tests would have been added and silently never run. Run from inside Tools/ because
+      # The Tools/ suites: the i18n audit that gates every PR's translations, the What's New
+      # generator (#878), and the evidence source-lock validator. Run from inside Tools/ because
       # the suites import their modules by bare name.
       - name: Run Tools/ tests
         run: |
@@ -71,8 +71,14 @@ jobs:
           python3 -m unittest discover -p "test_*.py" -v 2>&1 | tee "$RUNNER_TEMP/out.txt"
           ran=$(grep -oE '^Ran [0-9]+ test' "$RUNNER_TEMP/out.txt" | grep -oE '[0-9]+')
           echo "collected ${ran:-0} tests"
-          if [ "${ran:-0}" -lt 45 ]; then
-            echo "::error::expected at least 45 tests, collected ${ran:-0} — discovery is broken, not the suite"
+          if [ "${ran:-0}" -lt 50 ]; then
+            echo "::error::expected at least 50 tests, collected ${ran:-0} — discovery is broken, not the suite"
             exit 1
           fi
         working-directory: Tools
+
+      # External-repository evidence is only durable when it is pinned to immutable SHAs and its
+      # copy/provenance policy is explicit. Fail closed when the manifest regresses to a moving ref,
+      # short SHA, unlicensed-copy policy, or decompiled-origin source without a clean-room boundary.
+      - name: Validate hardening source lock
+        run: python3 Tools/source_lock.py docs/hardening/source-lock.json
