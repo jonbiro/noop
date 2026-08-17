@@ -46,6 +46,18 @@ public struct RROrderDistributionSummary: Equatable, Sendable, Codable {
         let finite = values.filter(\.isFinite).sorted()
         guard !finite.isEmpty else { return nil }
 
+        let computedMean = finite.reduce(0, +) / Double(finite.count)
+        let computedSampleStdDev: Double?
+        if finite.count > 1 {
+            let squared = finite.reduce(0.0) { partial, value in
+                let difference = value - computedMean
+                return partial + difference * difference
+            }
+            computedSampleStdDev = (squared / Double(finite.count - 1)).squareRoot()
+        } else {
+            computedSampleStdDev = nil
+        }
+
         count = finite.count
         minimum = finite[0]
         p10 = Self.quantile(finite, probability: 0.10)
@@ -54,17 +66,8 @@ public struct RROrderDistributionSummary: Equatable, Sendable, Codable {
         p75 = Self.quantile(finite, probability: 0.75)
         p90 = Self.quantile(finite, probability: 0.90)
         maximum = finite[finite.count - 1]
-        mean = finite.reduce(0, +) / Double(finite.count)
-
-        if finite.count > 1 {
-            let squared = finite.reduce(0.0) { partial, value in
-                let difference = value - mean
-                return partial + difference * difference
-            }
-            sampleStdDev = (squared / Double(finite.count - 1)).squareRoot()
-        } else {
-            sampleStdDev = nil
-        }
+        mean = computedMean
+        sampleStdDev = computedSampleStdDev
     }
 
     static func quantile(_ sorted: [Double], probability: Double) -> Double {
@@ -115,9 +118,11 @@ public struct RROrderTriStateCounts: Equatable, Sendable, Codable {
     public let unknownCount: Int
 
     public init(values: [Bool?]) {
-        trueCount = values.filter { $0 == true }.count
-        falseCount = values.filter { $0 == false }.count
-        unknownCount = values.count - trueCount - falseCount
+        let trueCount = values.filter { $0 == true }.count
+        let falseCount = values.filter { $0 == false }.count
+        self.trueCount = trueCount
+        self.falseCount = falseCount
+        self.unknownCount = values.count - trueCount - falseCount
     }
 }
 
@@ -202,12 +207,12 @@ public struct RROrderCorpusProvenanceSummary: Equatable, Sendable, Codable {
         }.count
 
         recordedOrderFractionBySession = RROrderDistributionSummary(
-            provenance.filter { $0.totalIntervals > 0 }.map(\.recordedOrderFraction)
+            provenance.filter { $0.totalIntervals > 0 }.compactMap(\.recordedOrderFraction)
         )
         trustworthyMultiBeatIntervalFractionBySession = RROrderDistributionSummary(
             provenance
                 .filter { $0.multiBeatIntervals > 0 }
-                .map(\.trustworthyMultiBeatIntervalFraction)
+                .compactMap(\.trustworthyMultiBeatIntervalFraction)
         )
     }
 }
