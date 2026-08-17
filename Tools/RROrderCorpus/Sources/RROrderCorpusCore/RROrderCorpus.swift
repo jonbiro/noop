@@ -206,6 +206,10 @@ public enum RROrderCorpusEncoder {
         "integrity_status", "audit_flags", "total_intervals", "first_rr_ts", "last_rr_ts", "rr_span_seconds",
         "distinct_seconds", "max_intervals_per_second", "recorded_order_fraction", "multi_beat_intervals",
         "trustworthy_multi_beat_interval_fraction", "legacy_unknown_seconds", "mixed_order_seconds", "ambiguous_order_seconds",
+        "rr_coverage", "collapsed_coverage", "coverage_verdict", "beat_spread_trustworthy", "beat_accurate_fraction",
+        "beat_values_trustworthy", "exact_duplicate_beat_count", "same_second_shadow_dropped",
+        "same_second_shadow_coverage", "same_second_shadow_beat_accurate_fraction", "cross_second_upper_bound_dropped",
+        "cross_second_upper_bound_coverage", "cross_second_upper_bound_beat_accurate_fraction",
         "reordered_groups", "reordered_group_fraction", "value_inversions", "possible_value_inversions",
         "normalized_inversion_fraction", "max_inversions_in_group", "max_trustworthy_group_size",
         "current_rmssd_ms", "magnitude_rmssd_ms", "rmssd_delta_ms", "rmssd_delta_pct_current",
@@ -224,6 +228,7 @@ public enum RROrderCorpusEncoder {
 
     private static func csvValues(_ record: RROrderCorpusRecord) -> [String] {
         let p = record.audit.provenance
+        let capture = record.audit.captureDiagnostics
         let impact = record.audit.permutationImpact
         let current = record.audit.currentOrder
         let magnitude = record.audit.magnitudeOrderCounterfactual
@@ -241,10 +246,16 @@ public enum RROrderCorpusEncoder {
             String(p.distinctSeconds), String(p.maxIntervalsPerSecond), number(p.recordedOrderFraction),
             String(p.multiBeatIntervals), number(p.trustworthyMultiBeatIntervalFraction),
             String(p.allUnknownMultiBeatSeconds), String(p.mixedOrderMultiBeatSeconds),
-            String(p.ambiguousRecordedOrderMultiBeatSeconds), String(impact.reorderedGroups),
-            number(impact.reorderedGroupFraction), String(impact.valueInversions), String(impact.possibleValueInversions),
-            number(impact.normalizedValueInversionFraction), String(impact.maxValueInversionsInGroup),
-            String(impact.maxTrustworthyGroupSize),
+            String(p.ambiguousRecordedOrderMultiBeatSeconds),
+            number(capture.coverage), number(capture.collapsedCoverage), capture.coverageVerdict,
+            String(capture.beatSpreadTrustworthy), number(capture.beatAccurateFraction),
+            String(capture.beatValuesTrustworthy), String(capture.exactDuplicateBeatCount),
+            String(capture.sameSecondShadowDropped), number(capture.sameSecondShadowCoverage),
+            number(capture.sameSecondShadowBeatAccurateFraction), String(capture.crossSecondUpperBoundDropped),
+            number(capture.crossSecondUpperBoundCoverage), number(capture.crossSecondUpperBoundBeatAccurateFraction),
+            String(impact.reorderedGroups), number(impact.reorderedGroupFraction), String(impact.valueInversions),
+            String(impact.possibleValueInversions), number(impact.normalizedValueInversionFraction),
+            String(impact.maxValueInversionsInGroup), String(impact.maxTrustworthyGroupSize),
             number(current.rmssdMs), number(magnitude.rmssdMs), number(record.audit.rmssdCurrentMinusMagnitudeMs),
             number(record.audit.rmssdCurrentMinusMagnitudePctOfCurrent),
             number(current.sdnnMs), number(magnitude.sdnnMs), number(record.audit.sdnnCurrentMinusMagnitudeMs),
