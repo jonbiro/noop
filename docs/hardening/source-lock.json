@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-16T16:39:00-07:00",
+  "target_repo": "jonbiro/noop",
+  "target_baseline": "d4b7cc8a3c2ebc02f77383fcdcae8cf597426abd",
+  "policy": {
+    "moving_refs_are_evidence_only": true,
+    "missing_license_is_reference_only": true,
+    "decompiled_origin_requires_clean_room_reimplementation": true,
+    "protocol_facts_require_independent_reproduction": true
+  },
+  "sources": [
+    {
+      "repo": "jonbiro/noop",
+      "url": "https://github.com/jonbiro/noop",
+      "branch": "main",
+      "sha": "d4b7cc8a3c2ebc02f77383fcdcae8cf597426abd",
+      "permalink": "https://github.com/jonbiro/noop/tree/d4b7cc8a3c2ebc02f77383fcdcae8cf597426abd",
+      "commit_date": "2026-08-16T13:34:08Z",
+      "role": "implementation target",
+      "license": {
+        "status": "verified_file",
+        "spdx": "PolyForm-Noncommercial-1.0.0",
+        "artifact": "LICENSE",
+        "copy_policy": "review_required",
+        "notes": "The fork inherits NOOP's PolyForm Noncommercial license and required notice."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "ryanbr/noop",
+      "url": "https://github.com/ryanbr/noop",
+      "branch": "main",
+      "sha": "d4b7cc8a3c2ebc02f77383fcdcae8cf597426abd",
+      "permalink": "https://github.com/ryanbr/noop/tree/d4b7cc8a3c2ebc02f77383fcdcae8cf597426abd",
+      "commit_date": "2026-08-16T13:34:08Z",
+      "role": "current upstream/reference NOOP implementation",
+      "license": {
+        "status": "verified_file",
+        "spdx": "PolyForm-Noncommercial-1.0.0",
+        "artifact": "LICENSE",
+        "copy_policy": "review_required",
+        "notes": "Same project license family as the target; preserve required notices and attribution."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "tanarchytan/noop",
+      "url": "https://github.com/tanarchytan/noop",
+      "branch": "noop-tan",
+      "sha": "409cafb61f394ac98a38ab3c43e2a750d8ea06e1",
+      "permalink": "https://github.com/tanarchytan/noop/tree/409cafb61f394ac98a38ab3c43e2a750d8ea06e1",
+      "commit_date": "2026-08-06T14:32:00Z",
+      "role": "mandatory active-fork differential audit",
+      "license": {
+        "status": "verified_file",
+        "spdx": "PolyForm-Noncommercial-1.0.0",
+        "artifact": "LICENSE",
+        "copy_policy": "review_required",
+        "notes": "Fork has materially diverged to a Rust/UniFFI core. Treat implementation deltas separately from architecture decisions."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "tanarchytan/whoop-rs",
+      "url": "https://github.com/tanarchytan/whoop-rs",
+      "branch": "master",
+      "sha": "73b5a6a7c4ea2fc067fedea58ae69cbdc638ae7d",
+      "permalink": "https://github.com/tanarchytan/whoop-rs/tree/73b5a6a7c4ea2fc067fedea58ae69cbdc638ae7d",
+      "commit_date": "2026-08-14T11:54:22Z",
+      "role": "protocol/physiology/BLE/UniFFI differential reference",
+      "license": {
+        "status": "readme_only",
+        "spdx": null,
+        "artifact": null,
+        "copy_policy": "reference_only",
+        "notes": "README describes PolyForm Noncommercial use, but no repository LICENSE artifact was present at this pinned commit. Do not copy code or fixtures until that is resolved."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "OpenStrap/analytics",
+      "url": "https://github.com/OpenStrap/analytics",
+      "branch": "main",
+      "sha": "cef6fe4d11c4b4a15ae626350304e882882405e1",
+      "permalink": "https://github.com/OpenStrap/analytics/tree/cef6fe4d11c4b4a15ae626350304e882882405e1",
+      "commit_date": "2026-08-15T12:11:23Z",
+      "role": "analytics, confidence, evidence-tier, absence-semantics reference",
+      "license": {
+        "status": "verified_file",
+        "spdx": "MIT",
+        "artifact": "LICENSE",
+        "copy_policy": "adapt_with_notice",
+        "notes": "MIT license verified. Differential review remains mandatory before adaptation."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "OpenStrap/protocol",
+      "url": "https://github.com/OpenStrap/protocol",
+      "branch": "main",
+      "sha": "87de87c3bc3ce5092b9d26eac0f7240f949fa538",
+      "permalink": "https://github.com/OpenStrap/protocol/tree/87de87c3bc3ce5092b9d26eac0f7240f949fa538",
+      "commit_date": "2026-08-15T12:34:40Z",
+      "role": "protocol fallback, plausibility-gate, parity-fixture reference",
+      "license": {
+        "status": "verified_file",
+        "spdx": "MIT",
+        "artifact": "LICENSE",
+        "copy_policy": "adapt_with_notice",
+        "notes": "MIT license verified; protocol facts still require independent reproduction against NOOP fixtures or hardware."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "OpenStrap/edge",
+      "url": "https://github.com/OpenStrap/edge",
+      "branch": "main",
+      "sha": "188433e872981727426ac7c02e5d0bca2d503be8",
+      "permalink": "https://github.com/OpenStrap/edge/tree/188433e872981727426ac7c02e5d0bca2d503be8",
+      "commit_date": "2026-08-15T13:03:45Z",
+      "role": "BLE lifecycle, background execution, storage and product-behavior reference",
+      "license": {
+        "status": "verified_file",
+        "spdx": "MIT",
+        "artifact": "LICENSE",
+        "copy_policy": "adapt_with_notice",
+        "notes": "MIT license verified. Reimplement platform lifecycle behavior natively rather than importing Flutter UI."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "satayutata/geniemax-core",
+      "url": "https://github.com/satayutata/geniemax-core",
+      "branch": "main",
+      "sha": "476550124c9e3fa08de40dbc99b11db4bd3186eb",
+      "permalink": "https://github.com/satayutata/geniemax-core/tree/476550124c9e3fa08de40dbc99b11db4bd3186eb",
+      "commit_date": "2026-06-22T00:52:01Z",
+      "role": "Swift analytics, golden-vector and replay-fixture reference",
+      "license": {
+        "status": "verified_file",
+        "spdx": "MIT",
+        "artifact": "LICENSE",
+        "copy_policy": "adapt_with_notice",
+        "notes": "MIT license verified. Physiological claims and protocol offsets require independent adjudication."
+      },
+      "provenance": "unknown"
+    },
+    {
+      "repo": "b-nnett/goose",
+      "url": "https://github.com/b-nnett/goose",
+      "branch": "main",
+      "sha": "ba9ae0280c9b5b9a1545baab8e944cb3b7563c62",
+      "permalink": "https://github.com/b-nnett/goose/tree/ba9ae0280c9b5b9a1545baab8e944cb3b7563c62",
+      "commit_date": "2026-06-02T12:40:08Z",
+      "role": "archived methodology and testing reference",
+      "license": {
+        "status": "missing",
+        "spdx": null,
+        "artifact": null,
+        "copy_policy": "reference_only",
+        "notes": "Repository is archived and no license artifact was exposed at the pinned state. Copy nothing."
+      },
+      "provenance": "unknown"
+    },
+    {
+      "repo": "johnmiddleton12/wearable",
+      "url": "https://github.com/johnmiddleton12/wearable",
+      "branch": "main",
+      "sha": "890e0c96beb817ab0cec3aaf7d9a06c530025355",
+      "permalink": "https://github.com/johnmiddleton12/wearable/tree/890e0c96beb817ab0cec3aaf7d9a06c530025355",
+      "commit_date": "2026-05-29T04:16:50Z",
+      "role": "pipeline invariants, safe ACK ordering, cursor and parity methodology reference",
+      "license": {
+        "status": "missing",
+        "spdx": null,
+        "artifact": null,
+        "copy_policy": "reference_only",
+        "notes": "README describes clean-room/original code, but no repository license artifact was exposed at the pinned state. Use methodology only."
+      },
+      "provenance": "clean"
+    },
+    {
+      "repo": "Sophonbot0/whoop-vault",
+      "url": "https://github.com/Sophonbot0/whoop-vault",
+      "branch": "main",
+      "sha": "bd43855e5d27f72125b0085a7f5f14beca585395",
+      "permalink": "https://github.com/Sophonbot0/whoop-vault/tree/bd43855e5d27f72125b0085a7f5f14beca585395",
+      "commit_date": "2026-05-19T23:53:36Z",
+      "role": "WHOOP 5/MG BLE and deep-data hypothesis source",
+      "license": {
+        "status": "verified_file",
+        "spdx": "MIT",
+        "artifact": "LICENSE",
+        "copy_policy": "clean_room_only",
+        "notes": "MIT wrapper does not remove provenance risk: project documentation states findings were derived from a decompiled official APK. Only independently reproduced wire facts may enter NOOP."
+      },
+      "provenance": "decompiled_origin"
+    },
+    {
+      "repo": "a9eelsh/whoop-local",
+      "url": "https://github.com/a9eelsh/whoop-local",
+      "branch": "main",
+      "sha": "2e7e8bb7b86811b0b180c28aa29c35af5d720d64",
+      "permalink": "https://github.com/a9eelsh/whoop-local/tree/2e7e8bb7b86811b0b180c28aa29c35af5d720d64",
+      "commit_date": "2026-07-26T02:24:58Z",
+      "role": "single-file differential oracle and research notebook",
+      "license": {
+        "status": "missing",
+        "spdx": null,
+        "artifact": null,
+        "copy_policy": "clean_room_only",
+        "notes": "Pinned HEAD explicitly deleted LICENSE. Documentation also identifies decompiled-app material as a source. Copy nothing; use only to form independently testable hypotheses."
+      },
+      "provenance": "decompiled_origin"
+    },
+    {
+      "repo": "christianmeurer/whoop-reader",
+      "url": "https://github.com/christianmeurer/whoop-reader",
+      "branch": "master",
+      "sha": "8414797ad50c08c408ec3fb8486e186e0bf9bc06",
+      "permalink": "https://github.com/christianmeurer/whoop-reader/tree/8414797ad50c08c408ec3fb8486e186e0bf9bc06",
+      "commit_date": "2026-04-08T04:50:30Z",
+      "role": "small WHOOP 4 BLE/decoder cross-check",
+      "license": {
+        "status": "verified_file",
+        "spdx": "MIT",
+        "artifact": "LICENSE",
+        "copy_policy": "adapt_with_notice",
+        "notes": "MIT license verified. Community-RE provenance means protocol claims still need capture/fixture confirmation."
+      },
+      "provenance": "mixed"
+    },
+    {
+      "repo": "bWanShiTong/reverse-engineering-whoop-post",
+      "url": "https://github.com/bWanShiTong/reverse-engineering-whoop-post",
+      "branch": "master",
+      "sha": "305e35d9c4a57b0241ab1ccb2894a8ed3304d5aa",
+      "permalink": "https://github.com/bWanShiTong/reverse-engineering-whoop-post/tree/305e35d9c4a57b0241ab1ccb2894a8ed3304d5aa",
+      "commit_date": "2024-06-10T05:55:46Z",
+      "role": "historical protocol research reference",
+      "license": {
+        "status": "missing",
+        "spdx": null,
+        "artifact": null,
+        "copy_policy": "reference_only",
+        "notes": "No license artifact was exposed at the pinned state. Treat as factual-research context only and independently reproduce any protocol observation."
+      },
+      "provenance": "mixed"
+    }
+  ]
+}
