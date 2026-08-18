@@ -39,6 +39,30 @@ on-device from NOOP's own data and make no medical claim.
 - **Local export / import / reporting** — your data leaves only when *you* export it.
 - **Offline insights and explainers** that need no cloud identity.
 
+## Experimental one-way self-hosted export
+
+Issue #1314 deliberately expands the final bullet above with one narrow, opt-in network boundary while
+preserving NOOP's local-first model. The Experimental self-hosted push is **export**, not cloud sync:
+NOOP remains fully useful with it disabled and never depends on the destination for reads, scoring,
+identity, configuration, or strap offload.
+
+The boundary is strict:
+
+- disabled by default; no configured endpoint means no export network request;
+- one-way only — NOOP sends versioned batches and never reads application state or commands back;
+- the endpoint and bearer token are supplied by the user, and the token is kept in platform secure
+  storage rather than SQLite;
+- NOOP ships no receiver, hosted service, account system, discovery service, or mandatory server;
+- automatic push is scheduled only after local offload and is independent background work, so receiver
+  latency/failure cannot delay or fail BLE/offload;
+- the initial implementation is Wi-Fi-only and bounded by batch, timeout, and retry/backoff limits;
+- transport cursors are separate from the legacy per-row `synced` flags;
+- raw/deep experimental buffers are not automatically exported merely because they exist locally.
+
+Any future bidirectional sync, hosted receiver, remote-control plane, mandatory account, or dependency
+on receiver state is a new scope change and requires its own tracked proposal. The wire contract is
+specified in [PUSH_PROTOCOL.md](PUSH_PROTOCOL.md).
+
 ## Proposing a scope change
 
 Scope changes are deliberate, not incidental. If you believe one of the out-of-scope areas should move,
