@@ -9,9 +9,12 @@ features so the boundary is discoverable.
 
 ## The constraints this follows from
 
-NOOP is **fully offline, on-device, and anonymous**: no server, no account, no cloud sync, no telemetry,
-and **not a medical device** (see the [Disclaimer](../DISCLAIMER.md#5-not-a-medical-device)). Those are
-hard constraints, not preferences. Everything below is a consequence of them, not a separate rule.
+NOOP's core data path is **fully offline, on-device, and anonymous**: NOOP operates no server, account,
+cloud sync, or telemetry, and is **not a medical device** (see the
+[Disclaimer](../DISCLAIMER.md#5-not-a-medical-device)). Those are hard constraints, not preferences.
+Explicit user-directed exports may leave the device only at the user's request and must never become a
+dependency of collection, storage, analytics, or normal app operation. Everything below is a consequence
+of those constraints, not a separate rule.
 
 ## Out of scope
 
@@ -37,6 +40,11 @@ on-device from NOOP's own data and make no medical claim.
   [CLAUDE.md](../CLAUDE.md): an unproven derivation lands as instrumentation, not a shipped feature.
 - **Local notifications from NOOP's own metrics** — charge, alarm, sync state — computed on-device.
 - **Local export / import / reporting** — your data leaves only when *you* export it.
+- **Experimental user-owned one-way export (#1314).** A user may explicitly create a standing export
+  order that sends new NOOP data to an endpoint they own or choose. It must be default-off, one-way,
+  asynchronous after local strap offload, and irrelevant to normal app operation when disabled or when
+  the receiver is unavailable. NOOP ships a client and documented format, not a hosted receiver, account,
+  identity service, or telemetry system. See [the self-hosted push protocol](PUSH_PROTOCOL.md).
 - **Offline insights and explainers** that need no cloud identity.
 
 ## Proposing a scope change
