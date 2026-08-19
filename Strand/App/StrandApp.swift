@@ -55,6 +55,9 @@ struct StrandApp: App {
                 // v5 L3: the shared stress check-in nudge surface, so the Breathe screen's passive
                 // card observes the SAME instance the central detector (AppModel.evaluateStress) posts to.
                 .environment(\.stressNudgeCenter, model.stressNudgeCenter)
+                // #1314: install a separate observer on completed-offload time. The worker is detached
+                // from BLE/offload success, so a bad receiver can never stall strap sync.
+                .onAppear { SelfHostedPushScheduler.shared.install(model: model) }
                 .frame(minWidth: 1000, minHeight: 700)
                 .preferredColorScheme(AppearanceMode.resolve(appearanceRaw).colorScheme)
                 // Keep date/number words on the same bundle language as every localized string. A pending
