@@ -40,15 +40,43 @@ final class SelfHostedPushTests: XCTestCase {
         XCTAssertEqual(cursor, 0)
     }
 
+    func testAppendCursorAnchorFailsSafeAfterRowIDReuse() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        _ = try await store.insert(Streams(hr: [HRSample(ts: 100, bpm: 60)]), deviceId: "dev1")
+
+        let first = try XCTUnwrap(try await store.nextSelfHostedPushAppendBatch(.hrSample))
+        let acknowledgedRowID = try XCTUnwrap(first.cursorToInclusive)
+        try await store.setSelfHostedPushCursor(.hrSample, acknowledgedRowID)
+        XCTAssertEqual(try await store.selfHostedPushCursor(.hrSample), acknowledgedRowID)
+
+        // Removing the acknowledged row and inserting a different row can reuse its implicit rowid.
+        // This is the same failure shape as rowid renumbering: the numeric cursor exists but now names
+        // a different logical record. The saved natural-key anchor must force an idempotent replay.
+        try await store.deleteAllData(deviceId: "dev1")
+        _ = try await store.insert(Streams(hr: [HRSample(ts: 200, bpm: 61)]), deviceId: "dev1")
+
+        XCTAssertEqual(try await store.selfHostedPushCursor(.hrSample), 0)
+        let replay = try XCTUnwrap(try await store.nextSelfHostedPushAppendBatch(.hrSample))
+        XCTAssertEqual(replay.cursorFromExclusive, 0)
+        XCTAssertEqual(replay.records.count, 1)
+        XCTAssertEqual(replay.records[0]["ts"], .int(200))
+    }
+
     func testPushCursorNamespaceDoesNotCollideWithLegacyHighwater() async throws {
         let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        _ = try await store.insert(Streams(hr: [HRSample(ts: 100, bpm: 60)]), deviceId: "dev1")
+        let batch = try XCTUnwrap(try await store.nextSelfHostedPushAppendBatch(.hrSample))
+        let rowID = try XCTUnwrap(batch.cursorToInclusive)
+
         try await store.setHighwater("hrSample", 999)
-        try await store.setSelfHostedPushCursor(.hrSample, 123)
+        try await store.setSelfHostedPushCursor(.hrSample, rowID)
 
         let legacy = try await store.highwater("hrSample")
         let push = try await store.selfHostedPushCursor(.hrSample)
         XCTAssertEqual(legacy, 999)
-        XCTAssertEqual(push, 123)
+        XCTAssertEqual(push, rowID)
     }
 
     func testInternalSyncedColumnNeverAppearsOnWire() async throws {
