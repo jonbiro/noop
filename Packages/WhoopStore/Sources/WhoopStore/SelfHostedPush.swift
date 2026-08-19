@@ -10,6 +10,7 @@ import GRDB
 public enum SelfHostedPush {
     public static let protocolVersion = 1
     public static let cursorPrefix = "selfHostedPush:"
+    public static let anchorPrefix = "selfHostedPushAnchor:"
     public static let defaultAppendLimit = 500
     public static let defaultMutableWindowDays = 14
 
@@ -63,6 +64,12 @@ public enum SelfHostedPush {
             default: return ["deviceId", "ts"]
             }
         }
+    }
+
+    public enum CursorError: Error, Equatable, Sendable {
+        /// The receiver accepted a batch, but the row that should anchor its cursor disappeared before
+        /// local commit. Failing the commit forces a safe idempotent retry rather than advancing blindly.
+        case anchorRowMissing(stream: Stream, rowID: Int64)
     }
 
     public enum JSONValue: Equatable, Sendable {
@@ -162,21 +169,64 @@ public enum SelfHostedPush {
 extension WhoopStore {
     /// Distinct from the legacy upload `highwater:` and server-pull `read:` cursors. Restoring a DB also
     /// restores these cursors with it, which can at worst cause idempotent re-send, never a skipped row.
+    ///
+    /// The integer high-water is paired with a fingerprint of the acknowledged row's natural key. SQLite
+    /// does not promise that an implicit rowid survives maintenance such as VACUUM. If the row at the saved
+    /// rowid no longer matches its anchor, this returns zero and replays the stream idempotently instead of
+    /// trusting a stale cursor that could skip records.
     public func selfHostedPushCursor(_ stream: SelfHostedPush.Stream) async throws -> Int64 {
-        Int64(try await cursor(SelfHostedPush.cursorPrefix + stream.rawValue) ?? 0)
+        guard stream.mode == .append else { return 0 }
+        return try syncRead { db in
+            let cursorName = SelfHostedPush.cursorPrefix + stream.rawValue
+            let anchorName = SelfHostedPush.anchorPrefix + stream.rawValue
+            let rowID = try Int.fetchOne(
+                db,
+                sql: "SELECT value FROM cursors WHERE name = ?",
+                arguments: [cursorName]
+            ) ?? 0
+            guard rowID > 0 else { return 0 }
+            guard let savedAnchor = try Int.fetchOne(
+                db,
+                sql: "SELECT value FROM cursors WHERE name = ?",
+                arguments: [anchorName]
+            ), let currentAnchor = try SelfHostedPush.anchorFingerprint(
+                db: db,
+                stream: stream,
+                rowID: Int64(rowID)
+            ), savedAnchor == currentAnchor else {
+                return 0
+            }
+            return Int64(rowID)
+        }
     }
 
     /// Commit only AFTER a receiver accepted the matching append batch. Upsert-window streams never use it.
+    /// Cursor + anchor are committed atomically in the same local transaction.
     public func setSelfHostedPushCursor(_ stream: SelfHostedPush.Stream, _ rowID: Int64) async throws {
         guard stream.mode == .append else { return }
-        try await setCursor(SelfHostedPush.cursorPrefix + stream.rawValue, Int(rowID))
+        try syncWrite { db in
+            guard let anchor = try SelfHostedPush.anchorFingerprint(db: db, stream: stream, rowID: rowID) else {
+                throw SelfHostedPush.CursorError.anchorRowMissing(stream: stream, rowID: rowID)
+            }
+            let pairs = [
+                (SelfHostedPush.cursorPrefix + stream.rawValue, Int(rowID)),
+                (SelfHostedPush.anchorPrefix + stream.rawValue, anchor),
+            ]
+            for (name, value) in pairs {
+                try db.execute(sql: """
+                    INSERT INTO cursors (name, value) VALUES (?, ?)
+                    ON CONFLICT(name) DO UPDATE SET value = excluded.value
+                    """, arguments: [name, value])
+            }
+        }
     }
 
     /// Next append-only chunk after the stream's committed insertion-order cursor.
     ///
     /// Uses SQLite rowid instead of physiological timestamp. That is the important #1314 property: if the
     /// strap later offloads an older timestamp, its newly inserted rowid is still after the cursor and the
-    /// row is exported. The internal `synced` flag is explicitly stripped from the wire.
+    /// row is exported. The cursor anchor above makes rowid renumbering fail safe by replaying. The internal
+    /// `synced` flag is explicitly stripped from the wire.
     public func nextSelfHostedPushAppendBatch(
         _ stream: SelfHostedPush.Stream,
         limit: Int = SelfHostedPush.defaultAppendLimit,
@@ -277,5 +327,49 @@ private extension SelfHostedPush {
             result[column] = value(databaseValue)
         }
         return result
+    }
+
+    /// Stable, exporter-local fingerprint used only to detect that a saved implicit rowid no longer names
+    /// the same logical row. FNV-1a is sufficient here: this is corruption/renumbering detection, not auth.
+    static func anchorFingerprint(db: Database, stream: Stream, rowID: Int64) throws -> Int? {
+        let columns = stream.naturalKey.joined(separator: ", ")
+        guard let row = try Row.fetchOne(
+            db,
+            sql: "SELECT \(columns) FROM \(stream.rawValue) WHERE rowid = ?",
+            arguments: [rowID]
+        ) else { return nil }
+
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        let prime: UInt64 = 1_099_511_628_211
+        func feed(_ text: String) {
+            for byte in text.utf8 {
+                hash ^= UInt64(byte)
+                hash &*= prime
+            }
+            hash ^= 0xFF
+            hash &*= prime
+        }
+
+        for column in stream.naturalKey {
+            feed(column)
+            let databaseValue: DatabaseValue? = row[column]
+            guard let databaseValue else {
+                feed("missing")
+                continue
+            }
+            switch databaseValue.storage {
+            case .null:
+                feed("null")
+            case .int64(let value):
+                feed("i:\(value)")
+            case .double(let value):
+                feed("d:\(value.bitPattern)")
+            case .string(let value):
+                feed("s:\(value)")
+            case .blob(let value):
+                feed("b:\(value.base64EncodedString())")
+            }
+        }
+        return Int(hash & 0x7FFF_FFFF_FFFF_FFFF)
     }
 }
