@@ -74,9 +74,11 @@ Protocol v1 append streams:
 
 The local cursor is based on SQLite insertion order rather than physiological timestamp. This distinction is intentional. A strap may later offload an older timestamp; that late backfill still has a newer insertion position and therefore remains exportable.
 
-NOOP commits the stream cursor only **after** the matching POST receives a 2xx response. Reading/encoding a batch never advances the cursor.
+SQLite does not promise that an implicit `rowid` is permanent across every kind of database maintenance. To make that fail safe, NOOP stores a second exporter-only anchor fingerprint derived from the acknowledged row's documented natural key. Before trusting a saved high-water, the sender verifies that the same `rowid` still names the same logical row. If the anchor is missing or differs, the effective high-water becomes zero and the current stream is replayed. Because receiver ingestion is required to be idempotent, replay is safe and preferable to silently skipping rows after a local rowid renumber/reuse.
 
-The cursor values are sender bookkeeping. Receivers do not need to reproduce or persist them for correctness, although retaining them can help diagnostics.
+NOOP commits the stream cursor and its anchor only **after** the matching POST receives a 2xx response. Reading/encoding a batch never advances the cursor.
+
+The cursor values and anchor are sender bookkeeping. Receivers do not need to reproduce or persist them for correctness, although retaining the envelope cursor can help diagnostics.
 
 ### `upsertWindow`
 
