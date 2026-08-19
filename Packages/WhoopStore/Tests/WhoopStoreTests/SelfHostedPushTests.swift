@@ -45,10 +45,12 @@ final class SelfHostedPushTests: XCTestCase {
         try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
         _ = try await store.insert(Streams(hr: [HRSample(ts: 100, bpm: 60)]), deviceId: "dev1")
 
-        let first = try XCTUnwrap(try await store.nextSelfHostedPushAppendBatch(.hrSample))
+        let firstCandidate = try await store.nextSelfHostedPushAppendBatch(.hrSample)
+        let first = try XCTUnwrap(firstCandidate)
         let acknowledgedRowID = try XCTUnwrap(first.cursorToInclusive)
         try await store.setSelfHostedPushCursor(.hrSample, acknowledgedRowID)
-        XCTAssertEqual(try await store.selfHostedPushCursor(.hrSample), acknowledgedRowID)
+        let committedCursor = try await store.selfHostedPushCursor(.hrSample)
+        XCTAssertEqual(committedCursor, acknowledgedRowID)
 
         // Removing the acknowledged row and inserting a different row can reuse its implicit rowid.
         // This is the same failure shape as rowid renumbering: the numeric cursor exists but now names
@@ -56,8 +58,10 @@ final class SelfHostedPushTests: XCTestCase {
         try await store.deleteAllData(deviceId: "dev1")
         _ = try await store.insert(Streams(hr: [HRSample(ts: 200, bpm: 61)]), deviceId: "dev1")
 
-        XCTAssertEqual(try await store.selfHostedPushCursor(.hrSample), 0)
-        let replay = try XCTUnwrap(try await store.nextSelfHostedPushAppendBatch(.hrSample))
+        let recoveredCursor = try await store.selfHostedPushCursor(.hrSample)
+        XCTAssertEqual(recoveredCursor, 0)
+        let replayCandidate = try await store.nextSelfHostedPushAppendBatch(.hrSample)
+        let replay = try XCTUnwrap(replayCandidate)
         XCTAssertEqual(replay.cursorFromExclusive, 0)
         XCTAssertEqual(replay.records.count, 1)
         XCTAssertEqual(replay.records[0]["ts"], .int(200))
@@ -67,7 +71,8 @@ final class SelfHostedPushTests: XCTestCase {
         let store = try await WhoopStore.inMemory()
         try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
         _ = try await store.insert(Streams(hr: [HRSample(ts: 100, bpm: 60)]), deviceId: "dev1")
-        let batch = try XCTUnwrap(try await store.nextSelfHostedPushAppendBatch(.hrSample))
+        let batchCandidate = try await store.nextSelfHostedPushAppendBatch(.hrSample)
+        let batch = try XCTUnwrap(batchCandidate)
         let rowID = try XCTUnwrap(batch.cursorToInclusive)
 
         try await store.setHighwater("hrSample", 999)
