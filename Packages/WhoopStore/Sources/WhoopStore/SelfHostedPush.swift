@@ -271,10 +271,10 @@ extension WhoopStore {
 private extension SelfHostedPush {
     static func record(_ row: Row) -> [String: JSONValue] {
         var result: [String: JSONValue] = [:]
-        for (index, column) in row.columnNames.enumerated() {
+        for (column, databaseValue) in row {
             // Internal transport bookkeeping never belongs in the receiver contract.
             guard column != "_noopPushRowID", column != "synced" else { continue }
-            result[column] = value(row.databaseValue(atIndex: index))
+            result[column] = value(databaseValue)
         }
         return result
     }
